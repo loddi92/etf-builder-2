@@ -1,70 +1,132 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETF-Builder</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            text-align: center;
-            padding: 50px;
-        }
-        input, button {
-            padding: 10px;
-            font-size: 16px;
-            margin: 5px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CFB – your Customized Fund Builder</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h1>📈 ETF-Builder</h1>
-    <p>Gib einen Aktientitel ein (z. B. Apple, BASF, Sony):</p>
-    <input type="text" id="search" placeholder="Aktie suchen...">
-    <button onclick="sucheAktie()">Suchen</button>
-    <div id="resultat" style="margin-top: 40px;"></div>
+  <header>
+    <h1>🌍 CFB – your Customized Fund Builder</h1>
+  </header>
 
-    <script>
-        const FINNHUB_KEY = "d11marhr01qhbuvqt86gd1marhr01qhbuvqt870";
-        const TWELVE_KEY = "528d4463068641d986cdc40161490ad0";
+  <main>
+    <section>
+      <h2>🔍 Suche eine Aktie</h2>
+      <input type="text" id="tickerInput" placeholder="Symbol oder Name..." />
+      <button onclick="search()">Suchen</button>
+    </section>
 
-        async function sucheAktie() {
-            const ticker = document.getElementById("search").value.trim();
-            if (!ticker) return;
+    <section>
+      <h2>💰 Monatliches Investment</h2>
+      <input type="number" id="monthlyInvestment" placeholder="z. B. 200 €" />
+    </section>
 
-            document.getElementById("resultat").innerText = "Lade Daten...";
+    <section>
+      <h2>📅 Laufzeit (in Jahren)</h2>
+      <input type="number" id="duration" placeholder="z. B. 10" />
+    </section>
 
-            let daten = await holeVonFinnhub(ticker);
-            if (!daten) daten = await holeVonTwelveData(ticker);
+    <section>
+      <h2>💱 Währung</h2>
+      <select id="currency">
+        <option value="EUR">Euro (€)</option>
+        <option value="USD">US-Dollar ($)</option>
+      </select>
+    </section>
 
-            if (daten) {
-                document.getElementById("resultat").innerText = JSON.stringify(daten, null, 2);
-            } else {
-                document.getElementById("resultat").innerText = "Keine Daten gefunden.";
-            }
+    <section>
+      <button onclick="calculate()">📊 Auswerten</button>
+    </section>
+
+    <section id="resultSection" style="display: none;">
+      <h2>📈 Ergebnis</h2>
+      <div id="result"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2025 Customized Fund Builder</p>
+  </footer>
+
+  <script>
+    const FINNHUB_KEY = "d11marhr01qhbuvqt86gd11marhr01qhbuvqt870";
+    const TWELVE_KEY = "528d4463068641d986cdc40161490ad0";
+
+    async function getStockData(ticker) {
+      const finnhubUrl = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`;
+      const twelveUrl = `https://api.twelvedata.com/quote?symbol=${ticker}.XETRA&apikey=${TWELVE_KEY}`;
+
+      try {
+        const res = await fetch(finnhubUrl);
+        const data = await res.json();
+        if (data && data.c && data.c > 0) {
+          return { price: data.c, source: "Finnhub" };
         }
+      } catch (e) {
+        console.warn("Finnhub-Fehler:", e);
+      }
 
-        async function holeVonFinnhub(ticker) {
-            try {
-                const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`;
-                const res = await fetch(url);
-                const json = await res.json();
-                return json.c ? json : null;
-            } catch (e) {
-                return null;
-            }
+      try {
+        const res2 = await fetch(twelveUrl);
+        const data2 = await res2.json();
+        if (data2 && data2.close) {
+          return { price: parseFloat(data2.close), source: "Twelve Data" };
         }
+      } catch (e2) {
+        console.warn("Twelve Data-Fehler:", e2);
+      }
 
-        async function holeVonTwelveData(ticker) {
-            try {
-                const url = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`;
-                const res = await fetch(url);
-                const json = await res.json();
-                return json.price ? json : null;
-            } catch (e) {
-                return null;
-            }
-        }
-    </script>
+      return null;
+    }
+
+    async function search() {
+      const ticker = document.getElementById("tickerInput").value.trim().toUpperCase();
+      if (!ticker) return alert("Bitte gib ein Symbol ein.");
+
+      const resultDiv = document.getElementById("result");
+      const resultSection = document.getElementById("resultSection");
+      resultDiv.innerHTML = "🔄 Daten werden geladen...";
+
+      const stock = await getStockData(ticker);
+
+      if (stock) {
+        resultSection.style.display = "block";
+        resultDiv.innerHTML = `
+          <strong>${ticker}</strong><br />
+          📌 Aktueller Kurs: <strong>${stock.price.toFixed(2)}</strong> ${document.getElementById("currency").value}<br />
+          Quelle: ${stock.source}
+        `;
+      } else {
+        resultDiv.innerHTML = "❌ Keine Daten gefunden.";
+      }
+    }
+
+    function calculate() {
+      const investment = parseFloat(document.getElementById("monthlyInvestment").value);
+      const years = parseInt(document.getElementById("duration").value);
+
+      if (!investment || !years) {
+        alert("Bitte gib gültige Werte für Investment und Laufzeit ein.");
+        return;
+      }
+
+      const months = years * 12;
+      const total = investment * months;
+      const forecast = total * 1.35; // einfache Hochrechnung
+
+      const currency = document.getElementById("currency").value;
+      const resultDiv = document.getElementById("result");
+      const resultSection = document.getElementById("resultSection");
+
+      resultSection.style.display = "block";
+      resultDiv.innerHTML += `
+        <hr />
+        📅 ${months} Monate = Gesamtinvestition: <strong>${total.toFixed(2)} ${currency}</strong><br />
+        🔮 Prognose in ${years} Jahren: <strong>${forecast.toFixed(2)} ${currency}</strong>
+      `;
+    }
+  </script>
 </body>
 </html>
