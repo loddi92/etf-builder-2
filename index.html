@@ -60,7 +60,19 @@
         }
 
         // Fallback: Twelve Data
-        const tdSymbol = query.toUpperCase() + ".XETRA"; // Optional: XETRA, NSE, TSE etc.
+        getTwelveData(query);
+
+      } catch (error) {
+        resultDiv.innerHTML = "❌ Fehler beim Abrufen der Daten.";
+        console.error(error);
+      }
+    }
+
+    async function getTwelveData(query) {
+      const resultDiv = document.getElementById("result");
+      const tdSymbol = query.toUpperCase() + ".XETRA";
+
+      try {
         const tdRes = await fetch(`https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${TWELVE_KEY}`);
         const tdData = await tdRes.json();
 
@@ -73,10 +85,9 @@
         } else {
           resultDiv.innerHTML = "❌ Keine Kursdaten gefunden – weder bei Finnhub noch bei Twelve Data.";
         }
-
-      } catch (error) {
-        resultDiv.innerHTML = "❌ Fehler beim Abrufen der Daten.";
-        console.error(error);
+      } catch (err) {
+        resultDiv.innerHTML = "❌ Fehler beim Abrufen der Daten (Twelve Data).";
+        console.error(err);
       }
     }
   </script>
