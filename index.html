@@ -5,33 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Custom ETF Builder – mit Speichern & Entfernen</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js">
-async function getStockData(ticker) {
+async function getTwelveData(ticker) {
     const TWELVE_KEY = "528d4463068641d986cdc40161490ad0";
-    const FINNHUB_KEY = "d11marhr01qhbuvqt86gd11marhr01qhbuvqt870";
+    const searchResults = document.getElementById("searchResults");
+    const tdUrl = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`;
 
     try {
-        const res = await fetch(`https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`);
-        const data = await res.json();
+        const response = await fetch(tdUrl);
+        const data = await response.json();
+
         if (data && data.close) {
-            addStockToPortfolio(ticker, parseFloat(data.close), "Twelve Data");
-            return;
+            searchResults.innerHTML = `
+                <p>📊 <strong>${ticker}</strong> Kurs: ${parseFloat(data.close).toFixed(2)} USD<br>
+                Quelle: Twelve Data ✅</p>
+            `;
+        } else {
+            searchResults.innerHTML = "<p>❌ Keine Daten von Twelve Data gefunden.</p>";
         }
-    } catch (e2) {
-        console.warn("Twelve Data Fehler:", e2);
+    } catch (error) {
+        console.error("Fehler bei Twelve Data:", error);
+        searchResults.innerHTML = "<p>❌ Fehler beim Abrufen von Twelve Data.</p>";
     }
-
-    try {
-        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`);
-        const data = await res.json();
-        if (data && data.c && data.c > 0) {
-            addStockToPortfolio(ticker, data.c, "Finnhub");
-            return;
-        }
-    } catch (e) {
-        console.warn("Finnhub Fehler:", e);
-    }
-
-    alert("Diese Aktie konnte nicht gefunden werden.");
 }
 
 </script>
@@ -517,25 +511,7 @@ async function addToPortfolio(symbol) {
 
     renderPortfolio();
 
-async ?modules=price,summaryProfile`);
-  try {
-    const res = await fetch(url);
-    const json = await res.json();
-    const data = json.quoteSummary.result[0];
-
-    return {
-      name: data.price?.longName || symbol,
-      price: data.price?.regularMarketPrice?.raw || 0,
-      change: data.price?.regularMarketChangePercent?.raw || 0,
-      marketCap: Math.round((data.price?.marketCap?.raw || 100000000) / 1000000), // in Mio
-      sector: data.summaryProfile?.sector || "Sonstige",
-      region: data.summaryProfile?.country || "Unbekannt"
-    };
-  } catch (err) {
-    console.error("Yahoo QueryAPI Fehler:", err);
-    return null;
-  }
-}
+async 
   } catch (err) {
     console.error("Fehler beim Hinzufügen der Aktie:", err);
     alert("Fehler beim Hinzufügen der Aktie.");
@@ -667,33 +643,27 @@ function updatePieChart(chartRef, canvasId, dataMap) {
   if (canvasId === 'sectorChart') sectorChart = chartRef;
 }
 
-async function getStockData(ticker) {
+async function getTwelveData(ticker) {
     const TWELVE_KEY = "528d4463068641d986cdc40161490ad0";
-    const FINNHUB_KEY = "d11marhr01qhbuvqt86gd11marhr01qhbuvqt870";
+    const searchResults = document.getElementById("searchResults");
+    const tdUrl = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`;
 
     try {
-        const res = await fetch(`https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`);
-        const data = await res.json();
+        const response = await fetch(tdUrl);
+        const data = await response.json();
+
         if (data && data.close) {
-            addStockToPortfolio(ticker, parseFloat(data.close), "Twelve Data");
-            return;
+            searchResults.innerHTML = `
+                <p>📊 <strong>${ticker}</strong> Kurs: ${parseFloat(data.close).toFixed(2)} USD<br>
+                Quelle: Twelve Data ✅</p>
+            `;
+        } else {
+            searchResults.innerHTML = "<p>❌ Keine Daten von Twelve Data gefunden.</p>";
         }
-    } catch (e2) {
-        console.warn("Twelve Data Fehler:", e2);
+    } catch (error) {
+        console.error("Fehler bei Twelve Data:", error);
+        searchResults.innerHTML = "<p>❌ Fehler beim Abrufen von Twelve Data.</p>";
     }
-
-    try {
-        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`);
-        const data = await res.json();
-        if (data && data.c && data.c > 0) {
-            addStockToPortfolio(ticker, data.c, "Finnhub");
-            return;
-        }
-    } catch (e) {
-        console.warn("Finnhub Fehler:", e);
-    }
-
-    alert("Diese Aktie konnte nicht gefunden werden.");
 }
 
 </script>
