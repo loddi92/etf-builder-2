@@ -1,641 +1,85 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Custom ETF Builder – mit Speichern & Entfernen</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ETF-Builder – Weltweite Kurse</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 40px 20px;
-      position: relative;
-    }
-
-    /* body::before entfernt */ body::before { display: none;
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="white" opacity="0.1"/><circle cx="90" cy="20" r="1" fill="white" opacity="0.1"/><circle cx="30" cy="90" r="1" fill="white" opacity="0.1"/><circle cx="70" cy="60" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    h1 {
-  margin-top: 80px;
-      text-align: center;
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: white;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      margin-bottom: 40px;
-      letter-spacing: -1px;
-    }
-
-    h2 {
-      color: white;
-      font-size: 1.4rem;
-      font-weight: 600;
-      margin-bottom: 20px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    h3 {
-      color: white;
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin-bottom: 15px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    .section {
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 20px;
-      padding: 30px;
-      margin-bottom: 30px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .section:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    }
-
-    input, select {
-      padding: 15px 20px;
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      background: rgba(255, 255, 255, 0.9);
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    input:focus, select:focus {
-      outline: none;
-      border-color: rgba(255, 255, 255, 0.6);
-      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
-    }
-
-    label {
-      color: white;
-      font-weight: 500;
-      display: block;
-      margin-top: 20px;
-      margin-bottom: 5px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    .search-result {
-      background: rgba(255, 255, 255, 0.95);
-      color: #333;
-      padding: 20px;
-      margin-top: 15px;
-      border-radius: 15px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .search-result:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-
-    .search-result button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      border: none;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 25px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .search-result button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .portfolio-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 15px 0;
-      transition: all 0.3s ease;
-    }
-
-    .portfolio-row:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
-      padding-left: 15px;
-      padding-right: 15px;
-    }
-
-    .portfolio-row:last-child {
-      border-bottom: none;
-    }
-
-    .portfolio-row div {
-      color: white;
-      font-weight: 500;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    .portfolio-row button {
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-      border: none;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      cursor: pointer;
-      margin-left: 10px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-    }
-
-    .portfolio-row button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-    }
-
-    .portfolio-controls {
-      text-align: right;
-      margin-bottom: 20px;
-    }
-
-    .portfolio-controls button {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      padding: 12px 16px;
-      margin-left: 10px;
-      border-radius: 50px;
-      cursor: pointer;
-      font-size: 1.2rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .portfolio-controls button:hover {
-      background: rgba(255, 255, 255, 0.3);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    }
-
-    .tracker-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 30px;
-    }
-
-    .tracker-item {
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 20px;
-      padding: 25px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .tracker-item:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    }
-
-    canvas {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 15px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    #portfolioList {
-      color: white;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    @media (max-width: 768px) {
-      .container {
-        padding: 20px 10px;
-      }
-      
-      h1 {
-  margin-top: 80px;
-        font-size: 2rem;
-      }
-      
-      .section {
-        padding: 20px;
-      }
-      
-      .tracker-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .portfolio-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-      }
-      
-      .portfolio-controls {
-        text-align: center;
-      }
-    }
-  
-@supports not ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
-  .section, .tracker-item, input, select, .search-result {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #ddd;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  }
-
-  body {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-  }
-
-  /* body::before entfernt */ body::before { display: none;
-    display: none;
-  }
-}
-
-/* Glassmorphism für unterstützende Browser */
-@supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
-  .section, .tracker-item, input, select, .search-result {
-    background: rgba(255, 255, 255, 0.3);
-    -webkit-backdrop-filter: blur(15px);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-  }
-}
-
-/* Canvas-Fix und Grid-Anpassung auf Mobile */
-@media (max-width: 480px) {
-  .tracker-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  canvas {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-  }
-
-  .tracker-item {
-    padding: 15px !important;
-  }
-}
-
-/* Login/Registrieren Button-Gruppe */
-.auth-buttons {
-  position: absolute;
-  top: 30px;
-  right: 30px;
-  display: flex;
-  gap: 12px;
-  z-index: 10;
-}
-
-.auth-buttons button {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 25px;
-  padding: 8px 18px;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-}
-
-.auth-buttons button:hover {
-  background: rgba(255, 255, 255, 0.35);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-@media (max-width: 600px) {
-  .auth-buttons {
-    flex-direction: column;
-    top: 15px;
-    right: 15px;
-  }
-}
-</style>
-
-<style>
-  .positive { color: #4ecdc4; font-weight: bold; }
-  .negative { color: #ff6b6b; font-weight: bold; }
-</style>
-
+    body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
+    input, button { padding: 0.5rem; font-size: 1rem; margin-top: 1rem; }
+    #result { margin-top: 2rem; }
+  </style>
 </head>
 <body>
-<div class="auth-buttons">
-  <button onclick="alert('Login kommt bald')">🔐 Login</button>
-  <button onclick="alert('Registrieren kommt bald')">📝 Registrieren</button>
-</div>
 
-  <div class="container">
-    <h1>🌍 CFB – your Customized Fund Builder</h1>
+  <h1>📈 ETF-Builder</h1>
+  <p>Gib einen Aktientitel ein (z. B. Apple, BASF, Sony):</p>
 
-    <div class="section">
-      <h2>🔍 Aktie suchen</h2>
-      <input type="text" id="searchInput" placeholder="Symbol oder Name..." oninput="handleSearch()" />
-      <div id="searchResults"></div>
-    </div>
+  <input type="text" id="query" placeholder="Aktie suchen..." />
+  <button onclick="getStock()">Suchen</button>
 
-    <div class="section">
-      <h2>💶 Monatliches Investment</h2>
-      <input type="number" id="monthlyInvestment" value="1000" oninput="renderPortfolio()" />
-      <label for="currencySelect">Währung:</label>
-      <select id="currencySelect" onchange="renderPortfolio()">
-        <option value="EUR">€ Euro</option>
-        <option value="USD">$ US-Dollar</option>
-        <option value="CHF">CHF Franken</option>
-        <option value="GBP">£ Pfund</option>
-      </select>
-    </div>
+  <div id="result"></div>
 
-    <div class="section">
-      <h2>📈 Dein Portfolio</h2>
-      <div class="portfolio-controls">
-        <button title="Portfolio speichern">💾</button>
-<button title="Daten aktualisieren" onclick="refreshPortfolio()">🔄</button>
-        <button title="Portfolio löschen" onclick="clearPortfolio()">❌</button>
-      </div>
-      <div id="portfolioList">Noch keine Aktien hinzugefügt.</div>
-    </div>
+  <script>
+    const FINNHUB_KEY = 'd11marhr01qhbuvqt86gd1imarhr01qhbuvqt870';
+    const TWELVE_KEY = '528d4463068641d986cdc40161490ad0';
 
-    <div class="section">
-      <h2>📊 Gewichtung</h2>
-      <div class="tracker-grid">
-        <div class="tracker-item">
-          <h3>🌍 Länder-Anteil</h3>
-          <canvas id="regionChart"></canvas>
-        </div>
-        <div class="tracker-item">
-          <h3>🏭 Sektor-Anteil</h3>
-          <canvas id="sectorChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
+    async function getStock() {
+      const query = document.getElementById("query").value.trim();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "⏳ Suche nach '" + query + "'...";
 
+      if (!query) {
+        resultDiv.innerHTML = "❌ Bitte gib einen Suchbegriff ein.";
+        return;
+      }
+
+      try {
+        // Finnhub: Symbol-Suche
+        const searchRes = await fetch(`https://finnhub.io/api/v1/search?q=${query}&token=${FINNHUB_KEY}`);
+        const searchData = await searchRes.json();
+
+        if (searchData.result && searchData.result.length > 0) {
+          const match = searchData.result[0];
+          const symbol = match.symbol;
+          const name = match.description;
+
+          // Finnhub: Kursdaten
+          const quoteRes = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`);
+          const quote = await quoteRes.json();
+
+          if (quote && quote.c && quote.c > 0) {
+            resultDiv.innerHTML = `
+              ✅ <strong>${name}</strong> (${symbol})<br>
+              💵 Kurs: <strong>${quote.c.toFixed(2)} USD</strong><br>
+              🔼 Hoch: ${quote.h.toFixed(2)} – 🔽 Tief: ${quote.l.toFixed(2)}<br>
+              📊 Quelle: Finnhub
+            `;
+            return;
+          }
+        }
+
+        // Fallback: Twelve Data
+        const tdSymbol = query.toUpperCase() + ".XETRA"; // Optional: XETRA, NSE, TSE etc.
+        const tdRes = await fetch(`https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${TWELVE_KEY}`);
+        const tdData = await tdRes.json();
+
+        if (tdData && tdData.price) {
+          resultDiv.innerHTML = `
+            ✅ <strong>${query}</strong> (${tdSymbol})<br>
+            💵 Kurs: <strong>${Number(tdData.price).toFixed(2)} USD</strong><br>
+            📊 Quelle: Twelve Data
+          `;
+        } else {
+          resultDiv.innerHTML = "❌ Keine Kursdaten gefunden – weder bei Finnhub noch bei Twelve Data.";
+        }
+
+      } catch (error) {
+        resultDiv.innerHTML = "❌ Fehler beim Abrufen der Daten.";
+        console.error(error);
+      }
+    }
+  </script>
 
 </body>
 </html>
-<script>
-const API_KEY = "d1imarhr01qhbuvqt86gd1imarhr01qhbuvqt870";
-const BASE_URL = "https://finnhub.io/api/v1";
-let portfolio = [];
-let regionChart, sectorChart;
-
-async function handleSearch() {
-  const input = document.getElementById("searchInput").value.trim();
-  const box = document.getElementById("searchResults");
-  if (!input) return box.innerHTML = "";
-
-  const res = await fetch(`${BASE_URL}/search?q=${input}&token=${API_KEY}`);
-  const data = await res.json();
-  if (!data.result || data.result.length === 0) {
-    box.innerHTML = "<p>Keine Treffer</p>";
-    return;
-  }
-
-  box.innerHTML = data.result.slice(0, 5).map(stock => `
-    <div class="search-result">
-      <strong>${stock.symbol}</strong><br>${stock.description}
-      <br><button onclick="addToPortfolio('${stock.symbol}')">+ Hinzufügen</button>
-    </div>
-  `).join('');
-}
-
-async function addToPortfolio(symbol) {
-  if (portfolio.some(stock => stock.symbol === symbol)) {
-    alert("Diese Aktie ist bereits im Portfolio.");
-    return;
-  }
-
-  let profile = {};
-  let quote = {};
-
-  try {
-    const [profileRes, quoteRes] = await Promise.all([
-      fetch(`${BASE_URL}/stock/profile2?symbol=${symbol}&token=${API_KEY}`),
-      fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`)
-    ]);
-
-    profile = await profileRes.json();
-    quote = await quoteRes.json();
-
-    const missingData = !profile.name || !profile.country || !profile.finnhubIndustry || !profile.marketCapitalization || profile.marketCapitalization < 50;
-
-    if (missingData) {
-      const ydata = await getYahooData(symbol);
-      if (!ydata) {
-        alert("Keine vollständigen Daten über Yahoo verfügbar.");
-        return;
-      }
-      portfolio.push({
-        symbol: symbol,
-        name: ydata.name,
-        price: ydata.price,
-        change: ydata.change,
-        sector: ydata.sector,
-        region: ydata.region,
-        marketCap: ydata.marketCap
-      });
-    } else {
-      portfolio.push({
-        symbol: symbol,
-        name: profile.name || symbol,
-        price: quote.c || 0,
-        change: quote.dp || 0,
-        sector: profile.finnhubIndustry || "Unbekannt",
-        region: profile.country || "Unbekannt",
-        marketCap: profile.marketCapitalization || 100
-      });
-    }
-
-    renderPortfolio();
-
-async function getYahooData(symbol) {
-  const proxy = "https://corsproxy.io/?";  // einfacher CORS-Bypass über kostenlosen Proxy
-  const url = proxy + encodeURIComponent(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price,summaryProfile`);
-  try {
-    const res = await fetch(url);
-    const json = await res.json();
-    const data = json.quoteSummary.result[0];
-
-    return {
-      name: data.price?.longName || symbol,
-      price: data.price?.regularMarketPrice?.raw || 0,
-      change: data.price?.regularMarketChangePercent?.raw || 0,
-      marketCap: Math.round((data.price?.marketCap?.raw || 100000000) / 1000000), // in Mio
-      sector: data.summaryProfile?.sector || "Sonstige",
-      region: data.summaryProfile?.country || "Unbekannt"
-    };
-  } catch (err) {
-    console.error("Yahoo QueryAPI Fehler:", err);
-    return null;
-  }
-}
-  } catch (err) {
-    console.error("Fehler beim Hinzufügen der Aktie:", err);
-    alert("Fehler beim Hinzufügen der Aktie.");
-  }
-}
-
-
-async function refreshPortfolio() {
-  for (let stock of portfolio) {
-    const quote = await fetch(`${BASE_URL}/quote?symbol=${stock.symbol}&token=${API_KEY}`).then(r => r.json());
-    stock.price = quote.c || stock.price;
-    stock.change = quote.dp || 0;
-  }
-  renderPortfolio();
-}
-
-
-function removeFromPortfolio(symbol) {
-  portfolio = portfolio.filter(s => s.symbol !== symbol);
-  renderPortfolio();
-}
-
-
-async function refreshPortfolio() {
-  for (let stock of portfolio) {
-    const quote = await fetch(`${BASE_URL}/quote?symbol=${stock.symbol}&token=${API_KEY}`).then(r => r.json());
-    stock.price = quote.c || stock.price;
-    stock.change = quote.dp || 0;
-  }
-  renderPortfolio();
-}
-
-
-function clearPortfolio() {
-  portfolio = [];
-  renderPortfolio();
-}
-
-
-async function refreshPortfolio() {
-  for (let stock of portfolio) {
-    const quote = await fetch(`${BASE_URL}/quote?symbol=${stock.symbol}&token=${API_KEY}`).then(r => r.json());
-    stock.price = quote.c || stock.price;
-    stock.change = quote.dp || 0;
-  }
-  renderPortfolio();
-}
-
-
-function renderPortfolio() {
-  const monthly = parseFloat(document.getElementById("monthlyInvestment").value) || 0;
-  const currency = document.getElementById("currencySelect").value;
-  const list = document.getElementById("portfolioList");
-
-  if (portfolio.length === 0) {
-    list.innerHTML = "Noch keine Aktien hinzugefügt.";
-    return;
-  }
-
-  const totalCap = portfolio.reduce((sum, s) => sum + s.marketCap, 0);
-
-  list.innerHTML = portfolio.map(stock => {
-    const weight = stock.marketCap / totalCap;
-    const invest = monthly * weight;
-    const change = stock.change || 0;
-    const changeClass = change >= 0 ? 'positive' : 'negative';
-    const flagEmoji = {
-      "USA": "🇺🇸", "Germany": "🇩🇪", "France": "🇫🇷", "UK": "🇬🇧", "Japan": "🇯🇵"
-    }[stock.region] || "🌍";
-
-    return `
-      <div class="portfolio-row">
-        <div>
-          <strong>${stock.name} (${stock.symbol})</strong><br>
-          💰 <b>${invest.toFixed(2)} ${currency}</b> – ${(weight * 100).toFixed(1)}%<br>
-          📉 <span class="${changeClass}">${change.toFixed(2)}%</span> | 
-          🏭 ${stock.sector} | 
-          🌍 ${flagEmoji} ${stock.region}<br>
-          🧮 MarketCap: ${stock.marketCap.toLocaleString()} Mio
-        </div>
-        <button onclick="removeFromPortfolio('${stock.symbol}')">Entfernen</button>
-      </div>
-    `;
-  }).join('');
-
-  renderTrackers();
-}
-
-function renderTrackers() {
-  const totalCap = portfolio.reduce((sum, s) => sum + s.marketCap, 0);
-  const regionMap = {}, sectorMap = {};
-
-  portfolio.forEach(stock => {
-    const w = stock.marketCap / totalCap * 100;
-    regionMap[stock.region] = (regionMap[stock.region] || 0) + w;
-    sectorMap[stock.sector] = (sectorMap[stock.sector] || 0) + w;
-  });
-
-  updatePieChart(regionChart, 'regionChart', regionMap);
-  updatePieChart(sectorChart, 'sectorChart', sectorMap);
-}
-
-function updatePieChart(chartRef, canvasId, dataMap) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  const labels = Object.keys(dataMap);
-  const values = Object.values(dataMap);
-
-  if (chartRef) chartRef.destroy();
-  chartRef = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: values,
-        backgroundColor: labels.map(() => `hsl(${Math.random() * 360}, 60%, 60%)`)
-      }]
-    },
-    options: {
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: { color: 'black' }
-        }
-      }
-    }
-  });
-
-  if (canvasId === 'regionChart') regionChart = chartRef;
-  if (canvasId === 'sectorChart') sectorChart = chartRef;
-}
-</script>
