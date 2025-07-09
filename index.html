@@ -1,669 +1,400 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Custom ETF Builder – mit Speichern & Entfernen</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js">
-async function getTwelveData(ticker) {
-    const TWELVE_KEY = "528d4463068641d986cdc40161490ad0";
-    const searchResults = document.getElementById("searchResults");
-    const tdUrl = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`;
+/ ===============================================
+// SCHRITT 1: netlify/functions/stock-search.js
+// ===============================================
 
-    try {
-        const response = await fetch(tdUrl);
-        const data = await response.json();
+const fetch = require('node-fetch');
 
-        if (data && data.close) {
-            searchResults.innerHTML = `
-                <p>📊 <strong>${ticker}</strong> Kurs: ${parseFloat(data.close).toFixed(2)} USD<br>
-                Quelle: Twelve Data ✅</p>
-            `;
-        } else {
-            searchResults.innerHTML = "<p>❌ Keine Daten von Twelve Data gefunden.</p>";
-        }
-    } catch (error) {
-        console.error("Fehler bei Twelve Data:", error);
-        searchResults.innerHTML = "<p>❌ Fehler beim Abrufen von Twelve Data.</p>";
-    }
-}
+exports.handler = async (event, context) => {
+  // CORS Headers für alle Browser
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  };
 
-</script>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+  // Handle preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 40px 20px;
-      position: relative;
-    }
-
-    /* body::before entfernt */ body::before { display: none;
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="white" opacity="0.1"/><circle cx="90" cy="20" r="1" fill="white" opacity="0.1"/><circle cx="30" cy="90" r="1" fill="white" opacity="0.1"/><circle cx="70" cy="60" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    h1 {
-  margin-top: 80px;
-      text-align: center;
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: white;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      margin-bottom: 40px;
-      letter-spacing: -1px;
-    }
-
-    h2 {
-      color: white;
-      font-size: 1.4rem;
-      font-weight: 600;
-      margin-bottom: 20px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    h3 {
-      color: white;
-      font-size: 1.1rem;
-      font-weight: 500;
-      margin-bottom: 15px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    .section {
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 20px;
-      padding: 30px;
-      margin-bottom: 30px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .section:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    }
-
-    input, select {
-      padding: 15px 20px;
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      background: rgba(255, 255, 255, 0.9);
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    input:focus, select:focus {
-      outline: none;
-      border-color: rgba(255, 255, 255, 0.6);
-      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
-    }
-
-    label {
-      color: white;
-      font-weight: 500;
-      display: block;
-      margin-top: 20px;
-      margin-bottom: 5px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    .search-result {
-      background: rgba(255, 255, 255, 0.95);
-      color: #333;
-      padding: 20px;
-      margin-top: 15px;
-      border-radius: 15px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .search-result:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-
-    .search-result button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      border: none;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 25px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .search-result button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .portfolio-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 15px 0;
-      transition: all 0.3s ease;
-    }
-
-    .portfolio-row:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
-      padding-left: 15px;
-      padding-right: 15px;
-    }
-
-    .portfolio-row:last-child {
-      border-bottom: none;
-    }
-
-    .portfolio-row div {
-      color: white;
-      font-weight: 500;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    .portfolio-row button {
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-      border: none;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      cursor: pointer;
-      margin-left: 10px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-    }
-
-    .portfolio-row button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-    }
-
-    .portfolio-controls {
-      text-align: right;
-      margin-bottom: 20px;
-    }
-
-    .portfolio-controls button {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      padding: 12px 16px;
-      margin-left: 10px;
-      border-radius: 50px;
-      cursor: pointer;
-      font-size: 1.2rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .portfolio-controls button:hover {
-      background: rgba(255, 255, 255, 0.3);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    }
-
-    .tracker-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 30px;
-    }
-
-    .tracker-item {
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 20px;
-      padding: 25px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .tracker-item:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    }
-
-    canvas {
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 15px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    #portfolioList {
-      color: white;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    @media (max-width: 768px) {
-      .container {
-        padding: 20px 10px;
-      }
-      
-      h1 {
-  margin-top: 80px;
-        font-size: 2rem;
-      }
-      
-      .section {
-        padding: 20px;
-      }
-      
-      .tracker-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .portfolio-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-      }
-      
-      .portfolio-controls {
-        text-align: center;
-      }
-    }
+  const { keywords } = event.queryStringParameters;
   
-@supports not ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
-  .section, .tracker-item, input, select, .search-result {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #ddd;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  if (!keywords) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Keywords parameter required' })
+    };
   }
 
-  body {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+  try {
+    // ⚠️ API_KEY aus Environment Variables (SICHER!)
+    const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+    
+    if (!API_KEY) {
+      throw new Error('API Key not configured');
+    }
+
+    // Alpha Vantage Symbol Search - findet ALLE Weltaktien
+    const url = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=${API_KEY}`;
+    
+    console.log('Searching for:', keywords); // Debug log
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Alpha Vantage API Limit Check
+    if (data.Note && data.Note.includes('API call frequency')) {
+      return {
+        statusCode: 429,
+        headers,
+        body: JSON.stringify({ 
+          error: 'API Rate Limit erreicht. Bitte warten Sie 1 Minute.',
+          retryAfter: 60 
+        })
+      };
+    }
+    
+    console.log('Search results:', data.bestMatches?.length || 0, 'matches'); // Debug
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(data)
+    };
+  } catch (error) {
+    console.error('Stock search error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'API Error: ' + error.message,
+        type: 'search_error'
+      })
+    };
+  }
+};
+
+// ===============================================
+// SCHRITT 2: netlify/functions/stock-quote.js
+// ===============================================
+
+const fetch = require('node-fetch');
+
+exports.handler = async (event, context) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
 
-  /* body::before entfernt */ body::before { display: none;
-    display: none;
+  const { symbol } = event.queryStringParameters;
+  
+  if (!symbol) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Symbol parameter required' })
+    };
   }
-}
+  
+  try {
+    const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+    
+    if (!API_KEY) {
+      throw new Error('API Key not configured');
+    }
 
-/* Glassmorphism für unterstützende Browser */
-@supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
-  .section, .tracker-item, input, select, .search-result {
-    background: rgba(255, 255, 255, 0.3);
-    -webkit-backdrop-filter: blur(15px);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    console.log('Getting quote for:', symbol); // Debug
+
+    // Parallel API calls für bessere Performance
+    const [quoteRes, overviewRes] = await Promise.all([
+      fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`),
+      fetch(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${API_KEY}`)
+    ]);
+    
+    if (!quoteRes.ok || !overviewRes.ok) {
+      throw new Error('Failed to fetch stock data');
+    }
+    
+    const [quoteData, overviewData] = await Promise.all([
+      quoteRes.json(),
+      overviewRes.json()
+    ]);
+    
+    // Rate limit check
+    if (quoteData.Note || overviewData.Note) {
+      return {
+        statusCode: 429,
+        headers,
+        body: JSON.stringify({ 
+          error: 'API Rate Limit erreicht. Bitte warten Sie 1 Minute.',
+          retryAfter: 60 
+        })
+      };
+    }
+    
+    console.log('Quote retrieved for:', symbol); // Debug
+    
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        quote: quoteData,
+        overview: overviewData,
+        symbol: symbol
+      })
+    };
+  } catch (error) {
+    console.error('Stock quote error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'API Error: ' + error.message,
+        type: 'quote_error'
+      })
+    };
   }
-}
+};
 
-/* Canvas-Fix und Grid-Anpassung auf Mobile */
-@media (max-width: 480px) {
-  .tracker-grid {
-    grid-template-columns: 1fr !important;
-  }
+// ===============================================
+// SCHRITT 3: Aktualisiertes Frontend JavaScript
+// ===============================================
 
-  canvas {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-  }
-
-  .tracker-item {
-    padding: 15px !important;
-  }
-}
-
-/* Login/Registrieren Button-Gruppe */
-.auth-buttons {
-  position: absolute;
-  top: 30px;
-  right: 30px;
-  display: flex;
-  gap: 12px;
-  z-index: 10;
-}
-
-.auth-buttons button {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 25px;
-  padding: 8px 18px;
-  font-weight: 600;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-}
-
-.auth-buttons button:hover {
-  background: rgba(255, 255, 255, 0.35);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-@media (max-width: 600px) {
-  .auth-buttons {
-    flex-direction: column;
-    top: 15px;
-    right: 15px;
-  }
-}
-</style>
-
-<style>
-  .positive { color: #4ecdc4; font-weight: bold; }
-  .negative { color: #ff6b6b; font-weight: bold; }
-</style>
-
-</head>
-<body>
-<div class="auth-buttons">
-  <button onclick="alert('Login kommt bald')">🔐 Login</button>
-  <button onclick="alert('Registrieren kommt bald')">📝 Registrieren</button>
-</div>
-
-  <div class="container">
-    <h1>🌍 CFB – your Customized Fund Builder</h1>
-
-    <div class="section">
-      <h2>🔍 Aktie suchen</h2>
-      <input type="text" id="searchInput" placeholder="Symbol oder Name..." oninput="handleSearch()" />
-      <div id="searchResults"></div>
-    </div>
-
-    <div class="section">
-      <h2>💶 Monatliches Investment</h2>
-      <input type="number" id="monthlyInvestment" value="1000" oninput="renderPortfolio()" />
-      <label for="currencySelect">Währung:</label>
-      <select id="currencySelect" onchange="renderPortfolio()">
-        <option value="EUR">€ Euro</option>
-        <option value="USD">$ US-Dollar</option>
-        <option value="CHF">CHF Franken</option>
-        <option value="GBP">£ Pfund</option>
-      </select>
-    </div>
-
-    <div class="section">
-      <h2>📈 Dein Portfolio</h2>
-      <div class="portfolio-controls">
-        <button title="Portfolio speichern">💾</button>
-<button title="Daten aktualisieren" onclick="refreshPortfolio()">🔄</button>
-        <button title="Portfolio löschen" onclick="clearPortfolio()">❌</button>
-      </div>
-      <div id="portfolioList">Noch keine Aktien hinzugefügt.</div>
-    </div>
-
-    <div class="section">
-      <h2>📊 Gewichtung</h2>
-      <div class="tracker-grid">
-        <div class="tracker-item">
-          <h3>🌍 Länder-Anteil</h3>
-          <canvas id="regionChart"></canvas>
-        </div>
-        <div class="tracker-item">
-          <h3>🏭 Sektor-Anteil</h3>
-          <canvas id="sectorChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-</body>
-</html>
-<script>
-const API_KEY = "d1imarhr01qhbuvqt86gd1imarhr01qhbuvqt870";
-const BASE_URL = "https://finnhub.io/api/v1";
-let portfolio = [];
-let regionChart, sectorChart;
+// Diese Funktionen ersetzen die Demo-Funktionen in Ihrer HTML
 
 async function handleSearch() {
   const input = document.getElementById("searchInput").value.trim();
   const box = document.getElementById("searchResults");
-  if (!input) return box.innerHTML = "";
-
-  const res = await fetch(`${BASE_URL}/search?q=${input}&token=${API_KEY}`);
-  const data = await res.json();
-  if (!data.result || data.result.length === 0) {
-    box.innerHTML = "<p>Keine Treffer</p>";
+  const button = document.getElementById("searchButton");
+  
+  if (!input) {
+    box.innerHTML = "";
     return;
   }
 
-  box.innerHTML = data.result.slice(0, 5).map(stock => `
-    <div class="search-result">
-      <strong>${stock.symbol}</strong><br>${stock.description}
-      <br><button onclick="addToPortfolio('${stock.symbol}')">+ Hinzufügen</button>
-    </div>
-  `).join('');
+  if (input.length < 2) {
+    box.innerHTML = '<div class="search-result"><p class="info">Bitte mindestens 2 Zeichen eingeben</p></div>';
+    return;
+  }
+
+  button.disabled = true;
+  button.innerHTML = "🔄 Suche...";
+  box.innerHTML = '<div class="search-result loading"><p class="info">🔍 Durchsuche über 70.000 Weltaktien...</p></div>';
+
+  try {
+    // Netlify Function aufrufen - KEINE API-Keys im Frontend!
+    const response = await fetch(`/.netlify/functions/stock-search?keywords=${encodeURIComponent(input)}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.bestMatches && data.bestMatches.length > 0) {
+      displaySearchResults(data.bestMatches, input);
+    } else {
+      box.innerHTML = `
+        <div class="search-result">
+          <p class="error">❌ Keine Aktien für "${input}" gefunden.</p>
+          <p class="info">Versuchen Sie:</p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Vollständigen Firmennamen (z.B. "Volkswagen")</li>
+            <li>Ticker-Symbol (z.B. "VOW.DE")</li>
+            <li>Englischen Namen (z.B. "Siemens")</li>
+          </ul>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Search error:', error);
+    
+    let errorMessage = 'Unbekannter Fehler';
+    if (error.message.includes('Rate Limit')) {
+      errorMessage = 'API-Limit erreicht. Bitte warten Sie 1 Minute.';
+    } else if (error.message.includes('API Key not configured')) {
+      errorMessage = 'API-Key nicht konfiguriert. Bitte Environment Variables setzen.';
+    } else {
+      errorMessage = error.message;
+    }
+    
+    box.innerHTML = `
+      <div class="search-result">
+        <p class="error">❌ Fehler bei der Suche: ${errorMessage}</p>
+        <p class="info">Versuchen Sie es in einem Moment erneut.</p>
+      </div>
+    `;
+  } finally {
+    button.disabled = false;
+    button.innerHTML = "🔍 Suchen";
+  }
 }
 
-async function addToPortfolio(symbol) {
+function displaySearchResults(matches, query) {
+  const box = document.getElementById("searchResults");
+  
+  box.innerHTML = `
+    <div style="margin-bottom: 15px;">
+      <p class="success">✅ ${matches.length} Treffer für "${query}" gefunden:</p>
+    </div>
+  ` + matches.slice(0, 8).map(stock => {
+    const symbol = stock['1. symbol'];
+    const name = stock['2. name'];
+    const type = stock['3. type'];
+    const region = stock['4. region'];
+    const currency = stock['8. currency'];
+    const matchScore = parseFloat(stock['9. matchScore'] || 0);
+    
+    const flagEmoji = getCountryFlag(region);
+    
+    return `
+      <div class="search-result">
+        <strong>${symbol}</strong> - ${name}<br>
+        📊 ${type} | ${flagEmoji} ${region} | 💱 ${currency}<br>
+        🎯 Match: ${(matchScore * 100).toFixed(0)}% | 🏢 ${stock['3. type']}
+        <br><button onclick="addToPortfolioReal('${symbol}', '${name.replace(/'/g, "\\'")}', '${region}')">+ Hinzufügen</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function getCountryFlag(region) {
+  const flags = {
+    'United States': '🇺🇸',
+    'Germany': '🇩🇪', 
+    'France': '🇫🇷',
+    'United Kingdom': '🇬🇧',
+    'Japan': '🇯🇵',
+    'Netherlands': '🇳🇱',
+    'Switzerland': '🇨🇭',
+    'China': '🇨🇳',
+    'Canada': '🇨🇦',
+    'Australia': '🇦🇺',
+    'South Korea': '🇰🇷',
+    'India': '🇮🇳',
+    'Brazil': '🇧🇷',
+    'Italy': '🇮🇹',
+    'Spain': '🇪🇸',
+    'Sweden': '🇸🇪',
+    'Norway': '🇳🇴',
+    'Denmark': '🇩🇰',
+    'Finland': '🇫🇮',
+    'Austria': '🇦🇹',
+    'Belgium': '🇧🇪',
+    'Hong Kong': '🇭🇰',
+    'Singapore': '🇸🇬',
+    'Taiwan': '🇹🇼',
+    'South Africa': '🇿🇦',
+    'Mexico': '🇲🇽',
+    'Argentina': '🇦🇷',
+    'Chile': '🇨🇱',
+    'Russia': '🇷🇺',
+    'Israel': '🇮🇱',
+    'Saudi Arabia': '🇸🇦',
+    'Turkey': '🇹🇷',
+    'Thailand': '🇹🇭',
+    'Malaysia': '🇲🇾',
+    'Indonesia': '🇮🇩',
+    'Philippines': '🇵🇭',
+    'Vietnam': '🇻🇳',
+    'Egypt': '🇪🇬',
+    'Morocco': '🇲🇦',
+    'Kenya': '🇰🇪',
+    'Nigeria': '🇳🇬',
+    'New Zealand': '🇳🇿'
+  };
+  return flags[region] || '🌍';
+}
+
+async function addToPortfolioReal(symbol, name, region) {
   if (portfolio.some(stock => stock.symbol === symbol)) {
     alert("Diese Aktie ist bereits im Portfolio.");
     return;
   }
 
-  let profile = {};
-  let quote = {};
+  const box = document.getElementById("searchResults");
+  box.innerHTML = '<div class="search-result loading"><p class="info">🔄 Lade Aktiendetails...</p></div>';
 
   try {
-    const [profileRes, quoteRes] = await Promise.all([
-      fetch(`${BASE_URL}/stock/profile2?symbol=${symbol}&token=${API_KEY}`),
-      fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`)
-    ]);
-
-    profile = await profileRes.json();
-    quote = await quoteRes.json();
-
-    const missingData = !profile.name || !profile.country || !profile.finnhubIndustry || !profile.marketCapitalization || profile.marketCapitalization < 50;
-
-    if (missingData) {
-      const ydata = await getYahooData(symbol);
-      if (!ydata) {
-        alert("Keine vollständigen Daten über Yahoo verfügbar.");
-        return;
-      }
-      portfolio.push({
-        symbol: symbol,
-        name: ydata.name,
-        price: ydata.price,
-        change: ydata.change,
-        sector: ydata.sector,
-        region: ydata.region,
-        marketCap: ydata.marketCap
-      });
-    } else {
-      portfolio.push({
-        symbol: symbol,
-        name: profile.name || symbol,
-        price: quote.c || 0,
-        change: quote.dp || 0,
-        sector: profile.finnhubIndustry || "Unbekannt",
-        region: profile.country || "Unbekannt",
-        marketCap: profile.marketCapitalization || 100
-      });
+    // Detaildaten über Netlify Function abrufen
+    const response = await fetch(`/.netlify/functions/stock-quote?symbol=${encodeURIComponent(symbol)}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}`);
     }
+    
+    const data = await response.json();
+    
+    // Daten aus der API-Response extrahieren
+    const quote = data.quote['Global Quote'] || {};
+    const overview = data.overview || {};
+    
+    const price = parseFloat(quote['05. price']) || 0;
+    const changePercent = quote['10. change percent'] ? 
+      parseFloat(quote['10. change percent'].replace('%', '')) : 0;
+    
+    // MarketCap in Millionen umrechnen
+    let marketCap = 1000; // Default fallback
+    if (overview.MarketCapitalization && overview.MarketCapitalization !== 'None') {
+      marketCap = parseInt(overview.MarketCapitalization) / 1000000;
+    }
+    
+    // Sektor bestimmen
+    let sector = overview.Sector || 'Unbekannt';
+    if (sector === 'None' || sector === '') {
+      sector = overview.Industry || 'Unbekannt';
+    }
+    
+    portfolio.push({
+      symbol: symbol,
+      name: name,
+      price: price,
+      change: changePercent,
+      sector: sector,
+      region: region,
+      marketCap: marketCap,
+      currency: quote['01. symbol']?.includes('.') ? 'LOCAL' : 'USD'
+    });
 
     renderPortfolio();
-
-async 
-  } catch (err) {
-    console.error("Fehler beim Hinzufügen der Aktie:", err);
-    alert("Fehler beim Hinzufügen der Aktie.");
-  }
-}
-
-
-async function refreshPortfolio() {
-  for (let stock of portfolio) {
-    const quote = await fetch(`${BASE_URL}/quote?symbol=${stock.symbol}&token=${API_KEY}`).then(r => r.json());
-    stock.price = quote.c || stock.price;
-    stock.change = quote.dp || 0;
-  }
-  renderPortfolio();
-}
-
-
-function removeFromPortfolio(symbol) {
-  portfolio = portfolio.filter(s => s.symbol !== symbol);
-  renderPortfolio();
-}
-
-
-async function refreshPortfolio() {
-  for (let stock of portfolio) {
-    const quote = await fetch(`${BASE_URL}/quote?symbol=${stock.symbol}&token=${API_KEY}`).then(r => r.json());
-    stock.price = quote.c || stock.price;
-    stock.change = quote.dp || 0;
-  }
-  renderPortfolio();
-}
-
-
-function clearPortfolio() {
-  portfolio = [];
-  renderPortfolio();
-}
-
-
-async function refreshPortfolio() {
-  for (let stock of portfolio) {
-    const quote = await fetch(`${BASE_URL}/quote?symbol=${stock.symbol}&token=${API_KEY}`).then(r => r.json());
-    stock.price = quote.c || stock.price;
-    stock.change = quote.dp || 0;
-  }
-  renderPortfolio();
-}
-
-
-function renderPortfolio() {
-  const monthly = parseFloat(document.getElementById("monthlyInvestment").value) || 0;
-  const currency = document.getElementById("currencySelect").value;
-  const list = document.getElementById("portfolioList");
-
-  if (portfolio.length === 0) {
-    list.innerHTML = "Noch keine Aktien hinzugefügt.";
-    return;
-  }
-
-  const totalCap = portfolio.reduce((sum, s) => sum + s.marketCap, 0);
-
-  list.innerHTML = portfolio.map(stock => {
-    const weight = stock.marketCap / totalCap;
-    const invest = monthly * weight;
-    const change = stock.change || 0;
-    const changeClass = change >= 0 ? 'positive' : 'negative';
-    const flagEmoji = {
-      "USA": "🇺🇸", "Germany": "🇩🇪", "France": "🇫🇷", "UK": "🇬🇧", "Japan": "🇯🇵"
-    }[stock.region] || "🌍";
-
-    return `
-      <div class="portfolio-row">
-        <div>
-          <strong>${stock.name} (${stock.symbol})</strong><br>
-          💰 <b>${invest.toFixed(2)} ${currency}</b> – ${(weight * 100).toFixed(1)}%<br>
-          📉 <span class="${changeClass}">${change.toFixed(2)}%</span> | 
-          🏭 ${stock.sector} | 
-          🌍 ${flagEmoji} ${stock.region}<br>
-          🧮 MarketCap: ${stock.marketCap.toLocaleString()} Mio
-        </div>
-        <button onclick="removeFromPortfolio('${stock.symbol}')">Entfernen</button>
+    
+    box.innerHTML = `
+      <div class="search-result">
+        <p class="success">✅ ${symbol} wurde erfolgreich hinzugefügt!</p>
+        <p class="info">💰 Aktueller Kurs: ${price.toFixed(2)} | 📈 ${changePercent.toFixed(2)}%</p>
       </div>
     `;
-  }).join('');
-
-  renderTrackers();
-}
-
-function renderTrackers() {
-  const totalCap = portfolio.reduce((sum, s) => sum + s.marketCap, 0);
-  const regionMap = {}, sectorMap = {};
-
-  portfolio.forEach(stock => {
-    const w = stock.marketCap / totalCap * 100;
-    regionMap[stock.region] = (regionMap[stock.region] || 0) + w;
-    sectorMap[stock.sector] = (sectorMap[stock.sector] || 0) + w;
-  });
-
-  updatePieChart(regionChart, 'regionChart', regionMap);
-  updatePieChart(sectorChart, 'sectorChart', sectorMap);
-}
-
-function updatePieChart(chartRef, canvasId, dataMap) {
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  const labels = Object.keys(dataMap);
-  const values = Object.values(dataMap);
-
-  if (chartRef) chartRef.destroy();
-  chartRef = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: labels,
-      datasets: [{
-        data: values,
-        backgroundColor: labels.map(() => `hsl(${Math.random() * 360}, 60%, 60%)`)
-      }]
-    },
-    options: {
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: { color: 'black' }
-        }
-      }
+    
+    document.getElementById("searchInput").value = "";
+    
+  } catch (error) {
+    console.error('Error adding stock:', error);
+    
+    let errorMessage = 'Unbekannter Fehler';
+    if (error.message.includes('Rate Limit')) {
+      errorMessage = 'API-Limit erreicht. Versuchen Sie es in 1 Minute erneut.';
+    } else {
+      errorMessage = error.message;
     }
-  });
-
-  if (canvasId === 'regionChart') regionChart = chartRef;
-  if (canvasId === 'sectorChart') sectorChart = chartRef;
+    
+    box.innerHTML = `
+      <div class="search-result">
+        <p class="error">❌ Fehler beim Hinzufügen: ${errorMessage}</p>
+        <button onclick="addToPortfolioReal('${symbol}', '${name.replace(/'/g, "\\'")}', '${region}')">🔄 Erneut versuchen</button>
+      </div>
+    `;
+  }
 }
-
-async function getTwelveData(ticker) {
-    const TWELVE_KEY = "528d4463068641d986cdc40161490ad0";
-    const searchResults = document.getElementById("searchResults");
-    const tdUrl = `https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${TWELVE_KEY}`;
-
-    try {
-        const response = await fetch(tdUrl);
-        const data = await response.json();
-
-        if (data && data.close) {
-            searchResults.innerHTML = `
-                <p>📊 <strong>${ticker}</strong> Kurs: ${parseFloat(data.close).toFixed(2)} USD<br>
-                Quelle: Twelve Data ✅</p>
-            `;
-        } else {
-            searchResults.innerHTML = "<p>❌ Keine Daten von Twelve Data gefunden.</p>";
-        }
-    } catch (error) {
-        console.error("Fehler bei Twelve Data:", error);
-        searchResults.innerHTML = "<p>❌ Fehler beim Abrufen von Twelve Data.</p>";
-    }
-}
-
-</script>
